@@ -1,0 +1,230 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>HEALERTSYS | Live Monitor</title>
+    <script src="https://unpkg.com/maplibre-gl@3.x/dist/maplibre-gl.js"></script>
+    <link
+      href="https://unpkg.com/maplibre-gl@3.x/dist/maplibre-gl.css"
+      rel="stylesheet"
+    />
+    <style>
+      body {
+        margin: 0;
+        font-family: "Segoe UI", sans-serif;
+        background: #121212;
+        color: white;
+        display: flex;
+        height: 100vh;
+        overflow: hidden;
+      }
+
+      /* Split Layout */
+      #map {
+        flex: 1;
+        height: 100%;
+        position: relative;
+      }
+      #sidebar {
+        width: 450px;
+        background: #1e1e1e;
+        border-left: 1px solid #333;
+        display: flex;
+        flex-direction: column;
+        padding: 20px;
+        box-sizing: border-box;
+      }
+
+      h1 {
+        color: #ff4757;
+        margin: 0 0 10px 0;
+        font-size: 1.4rem;
+        text-align: center;
+      }
+      .controls {
+        text-align: center;
+        margin-bottom: 15px;
+      }
+
+      button {
+        background: #2ed573;
+        border: none;
+        padding: 10px 15px;
+        color: white;
+        border-radius: 5px;
+        cursor: pointer;
+        font-weight: bold;
+        width: 100%;
+      }
+      button:hover {
+        background: #7bed9f;
+      }
+
+      .table-wrapper {
+        flex-grow: 1;
+        overflow-y: auto;
+        margin-top: 10px;
+        border-radius: 5px;
+        background: #1e1e1e;
+      }
+      table {
+        width: 100%;
+        border-collapse: collapse;
+        font-size: 0.85rem;
+      }
+      th,
+      td {
+        padding: 10px;
+        text-align: left;
+        border-bottom: 1px solid #333;
+      }
+      th {
+        background: #2f3542;
+        color: #ffa502;
+        position: sticky;
+        top: 0;
+      }
+
+      .heat-tag {
+        padding: 3px 6px;
+        border-radius: 4px;
+        font-weight: bold;
+      }
+      .danger {
+        background: #ff4757;
+        color: white;
+      }
+      .caution {
+        background: #ffa502;
+        color: black;
+      }
+      .normal {
+        background: #2ed573;
+        color: white;
+      }
+
+      #loading {
+        font-size: 0.8rem;
+        color: #70a1ff;
+        display: none;
+      }
+    </style>
+  </head>
+  <body>
+    <div id="map"></div>
+
+    <div id="sidebar">
+      <h1>📍 HEALERTSYS</h1>
+      <div class="controls">
+        <button onclick="renderHistory()">🔄 Refresh Dashboard</button>
+        <div id="loading">Syncing tunnel...</div>
+      </div>
+
+      <div class="table-wrapper">
+        <table id="historyTable">
+          <thead>
+            <tr>
+              <th>Barangay</th>
+              <th>Temp</th>
+              <th>Time</th>
+            </tr>
+          </thead>
+          <tbody id="tableBody"></tbody>
+        </table>
+      </div>
+    </div>
+
+    <script src="config.js"></script>
+
+    <script>
+      const apiKey = HEALERTSYS_CONFIG.apiKey;
+      const apiURL = HEALERTSYS_CONFIG.apiURL;
+
+      // Initialize Map
+      const map = new maplibregl.Map({
+        container: "map",
+        style:
+          "https://tiles.basemaps.cartocdn.com/gl/dark-matter-gl-style/style.json",
+        center: [123.848, 10.2447],
+        zoom: 12.5,
+      });
+
+      let currentMarker = null;
+
+      async function renderHistory() {
+        const loader = document.getElementById("loading");
+        const tableBody = document.getElementById("tableBody");
+        loader.style.display = "block";
+
+        try {
+          const response = await fetch(apiURL, {
+            method: "GET",
+            headers: {
+              "X-API-KEY": apiKey,
+              "X-Tunnel-Skip-Anti-Phishing-Page": "true",
+              Accept: "application/json",
+            },
+          });
+
+          if (!response.ok) throw new Error("API Bouncer blocked request");
+
+          const data = await response.json();
+          loader.style.display = "none";
+          tableBody.innerHTML = "";
+
+          if (!data || data.length === 0) return;
+
+          // 1. MARK THE LATEST ONLY
+          const latest = data[0];
+          if (currentMarker) currentMarker.remove();
+
+          let markerColor = "#2ed573";
+          if (latest.heatIndex >= 42) markerColor = "#ff4757";
+          else if (latest.heatIndex >= 39) markerColor = "#ffa502";
+
+          currentMarker = new maplibregl.Marker({ color: markerColor })
+            .setLngLat([latest.lng, latest.lat])
+            .setPopup(
+              new maplibregl.Popup().setHTML(
+                `<b>${latest.barangayName}</b><br>${latest.heatIndex}°C`,
+              ),
+            )
+            .addTo(map);
+
+          map.flyTo({ center: [latest.lng, latest.lat], zoom: 14 });
+
+          // 2. RENDER THE FULL TABLE
+          // Build the string in memory first (Efficient!)
+          let rowsHtml = "";
+
+          data.forEach((item) => {
+            let statusClass =
+              item.heatIndex >= 42
+                ? "danger"
+                : item.heatIndex >= 39
+                  ? "caution"
+                  : "normal";
+
+            rowsHtml += `
+                  <tr style="cursor:pointer" onclick="map.flyTo({center:[${item.lng}, ${item.lat}], zoom:15})">
+                      <td><strong>${item.barangayName}</strong></td>
+                      <td><span class="heat-tag ${statusClass}">${item.heatIndex}°C</span></td>
+                      <td>${item.time}</td>
+                  </tr>
+              `;
+          });
+
+          // Update the DOM exactly ONCE
+          tableBody.innerHTML = rowsHtml;
+        } catch (error) {
+          console.error(error);
+          loader.innerText = "❌ Sync Failed";
+        }
+      }
+
+      map.on("load", renderHistory);
+      setInterval(renderHistory, 10000); // Auto-update every 10 seconds
+    </script>
+  </body>
+</html>
