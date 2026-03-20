@@ -39,7 +39,7 @@ async function syncData(flyToLatest = false) {
   try {
     const response = await fetch(apiURL, {
       headers: {
-        "X-API-KEY": apiKey,
+        // ❌ REMOVED: "X-API-KEY": apiKey,
         Accept: "application/json",
         "X-Tunnel-Skip-Anti-Phishing-Page": "true",
       },
