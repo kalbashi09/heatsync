@@ -21,36 +21,64 @@ async function loadSensors() {
         ? `<span class="bg-green-500/20 text-green-400 px-2 py-1 rounded-full text-xs font-bold border border-green-500/50">ACTIVE</span>`
         : `<span class="bg-red-500/20 text-red-400 px-2 py-1 rounded-full text-xs font-bold border border-red-500/50">INACTIVE</span>`;
 
-      // 1. Create the row element safely
       const tr = document.createElement("tr");
       tr.className =
         "hover:bg-slate-700/50 transition border-b border-slate-700";
 
-      // 2. Insert the text content
       tr.innerHTML = `
-                <td class="px-6 py-4 font-mono text-cyan-400">${s.sensorCode}</td>
-                <td class="px-6 py-4 font-semibold text-white">${s.displayName}</td>
-                <td class="px-6 py-4 text-slate-400">${s.barangay}</td>
-                <td class="px-6 py-4">${statusBadge}</td>
-                <td class="px-6 py-4 text-center">
-                    <button class="edit-btn bg-blue-600 hover:bg-blue-500 text-white px-4 py-2 rounded-md text-sm transition shadow-lg shadow-blue-900/20">
-                        Edit Station
-                    </button>
-                </td>
-            `;
+        <td class="px-6 py-4 font-mono text-cyan-400">${s.sensorCode}</td>
+        <td class="px-6 py-4 font-semibold text-white">${s.displayName}</td>
+        <td class="px-6 py-4 text-slate-400">${s.barangay}</td>
+        <td class="px-6 py-4">${statusBadge}</td>
+        <td class="px-6 py-4 text-center">
+            <div class="flex items-center justify-center gap-2">
+                <button class="edit-btn bg-blue-600 hover:bg-blue-500 text-white px-3 py-1.5 rounded-md text-sm transition shadow-lg shadow-blue-900/20">
+                    Edit
+                </button>
+                <button class="delete-btn bg-red-600/20 hover:bg-red-600 text-red-400 hover:text-white border border-red-500/50 px-3 py-1.5 rounded-md text-sm transition">
+                    Delete
+                </button>
+            </div>
+        </td>`;
 
-      // 3. Attach the Edit Logic via Event Listener (No more onclick errors!)
+      // --- ATTACH LISTENERS INSIDE THE LOOP ---
       tr.querySelector(".edit-btn").addEventListener("click", () => {
         handleEditClick(s);
       });
 
-      tbody.appendChild(tr);
-    });
+      tr.querySelector(".delete-btn").addEventListener("click", async () => {
+        const confirmed = confirm(
+          `⚠️ DANGER: Permanent delete ${s.sensorCode}?`,
+        );
+        if (confirmed) {
+          try {
+            const res = await fetch(`${API_BASE}/sensors/${s.id}`, {
+              method: "DELETE",
+              headers: {
+                "X-API-KEY": HEALERTSYS_CONFIG.apiKey,
+                "X-Tunnel-Skip-Anti-Phishing-Page": "true",
+              },
+            });
+            if (res.ok) {
+              loadSensors();
+            } else {
+              alert("❌ Delete Failed");
+            }
+          } catch (err) {
+            alert("Critical: Server Unreachable");
+          }
+        }
+      });
+
+      tbody.appendChild(tr); // Add to the table
+    }); // End of forEach
+
+    // --- ADD THESE LINES HERE ---
   } catch (err) {
     console.error("Critical: Failed to sync with backend.", err);
-    alert("Connection Error: Check if Dev Tunnel is active!");
+    alert("Connection Error: Backend unreachable!");
   }
-}
+} // End of loadSensors
 
 // Handle Edit Button Click
 function handleEditClick(sensor) {
