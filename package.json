@@ -1,0 +1,12 @@
+{
+  "name": "heatsync-frontend",
+  "version": "1.0.0",
+  "scripts": {
+    "dev": "npx @tailwindcss/cli -i ./input.css -o ./dist/output.css --watch",
+    "build": "npx @tailwindcss/cli -i ./input.css -o ./dist/output.css --minify"
+  },
+  "dependencies": {
+    "@tailwindcss/cli": "^4.2.2",
+    "tailwindcss": "^4.2.2"
+  }
+}

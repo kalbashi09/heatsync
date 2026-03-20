@@ -1,0 +1,7 @@
+/* input.css */
+@import "tailwindcss";
+
+/* Import your chopped files here */
+@import "./mapUI.css";
+@import "./logindash.css";
+@import "./admindash.css";
