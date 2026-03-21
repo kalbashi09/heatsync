@@ -84,7 +84,7 @@ async function syncData(flyToLatest = false) {
   }
 }
 
-// --- 3. UI RENDERING ---
+// --- 3. UI RENDERING (WITH TOP-2 LOGIC) ---
 function renderSidebar(data) {
   const container = document.getElementById("sensorList");
   container.innerHTML = "";
@@ -94,21 +94,60 @@ function renderSidebar(data) {
     return;
   }
 
-  data.forEach((node) => {
+  // --- START: ONE-PASS TOP-2 LOGIC ---
+  let goldIndex = -1;
+  let silverIndex = -1;
+  let goldValue = -Infinity;
+  let silverValue = -Infinity;
+
+  for (let i = 0; i < data.length; i++) {
+    const currentHeat = data[i].heatIndex;
+    if (currentHeat > goldValue) {
+      silverValue = goldValue;
+      silverIndex = goldIndex;
+      goldValue = currentHeat;
+      goldIndex = i;
+    } else if (currentHeat > silverValue) {
+      silverValue = currentHeat;
+      silverIndex = i;
+    }
+  }
+
+  // Swap Gold to Index 0
+  if (goldIndex !== -1) {
+    [data[0], data[goldIndex]] = [data[goldIndex], data[0]];
+    // If Gold was swapped with Silver's original position, update Silver's pointer
+    if (silverIndex === 0) silverIndex = goldIndex;
+  }
+
+  // Swap Silver to Index 1
+  if (silverIndex !== -1 && data.length > 1) {
+    [data[1], data[silverIndex]] = [data[silverIndex], data[1]];
+  }
+  // --- END: TOP-2 LOGIC ---
+
+  data.forEach((node, index) => {
     const heat = node.heatIndex;
     const colorHex = getHeatColor(heat);
     const colorClass = getTailwindColorClass(heat);
 
     const card = document.createElement("div");
 
-    // FIX 1: Apply the border color directly based on the 5-state logic
-    card.className = `bg-slate-900/30 border border-white/5 border-l-4 p-4 cursor-pointer hover:bg-white/[0.03] transition-all group`;
+    // Adding a subtle "Alert" indicator for the top 2 slots
+    const isTopTwo = index < 2;
+    const alertTag = isTopTwo
+      ? `<span class="text-[8px] bg-white/10 px-1 rounded ml-2">PRIORITY</span>`
+      : "";
+
+    card.className = `bg-slate-900/30 border border-white/5 border-l-4 p-4 cursor-pointer hover:bg-white/[0.03] transition-all group ${isTopTwo ? "bg-white/[0.02]" : ""}`;
     card.style.borderLeftColor = colorHex;
 
     card.innerHTML = `
       <div class="flex justify-between items-start">
         <div class="max-w-[70%]">
-          <div class="text-[9px] text-slate-500 font-mono mb-1 uppercase tracking-widest">${node.sensorCode}</div>
+          <div class="text-[9px] text-slate-500 font-mono mb-1 uppercase tracking-widest">
+            ${node.sensorCode} ${alertTag}
+          </div>
           <div class="text-sm font-black text-white truncate group-hover:text-[#f24e1e] transition-colors uppercase tracking-tight">${node.displayName}</div>
           <div class="text-[10px] text-slate-500 mt-1 font-mono uppercase">Brgy. ${node.barangayName}</div>
         </div>
