@@ -3,7 +3,7 @@ if (sessionStorage.getItem("isAdminAuthenticated") !== "true") {
   window.location.href = "logindash.html";
 }
 
-const API_BASE = "https://3h48gqgv-5000.asse.devtunnels.ms/api";
+const API_BASE = "https://heatsync-zs03.onrender.com/api";
 let isEditMode = true; // Global state
 
 async function loadSensors() {
