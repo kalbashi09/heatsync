@@ -1,19 +1,24 @@
-@import url("https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;700&display=swap");
+@import url("https://fonts.googleapis.com/css2?family=Chivo+Mono:wght@400;700&family=Inter:wght@300;400;600;700;800&display=swap");
 
 :root {
   --bg-deep: #020617;
-  --accent-blue: #3b82f6;
+  --brand-orange: #f24e1e; /* Updated to match landing page */
+  --accent-blue: #60a5fa;
   --danger-rose: #e11d48;
   --warning-amber: #f59e0b;
   --safe-emerald: #10b981;
 }
 
 body {
-  font-family: "JetBrains Mono", monospace;
+  font-family: "Inter", sans-serif;
   background-color: var(--bg-deep);
   color: #94a3b8;
   margin: 0;
   padding: 0;
+}
+
+.font-mono {
+  font-family: "Chivo Mono", monospace;
 }
 
 /* --- TACTICAL RADAR MARKER --- */
@@ -151,4 +156,26 @@ body {
 .custom-scroll::-webkit-scrollbar-thumb {
   background: #334155;
   border-radius: 10px;
+}
+
+/* Updated Sidebar Styling */
+#sensorList::-webkit-scrollbar {
+  width: 4px;
+}
+#sensorList::-webkit-scrollbar-thumb {
+  background: #1e293b;
+  border-radius: 10px;
+}
+
+.notice-pulse {
+  animation: pulse-soft 2s infinite;
+}
+@keyframes pulse-soft {
+  0%,
+  100% {
+    opacity: 1;
+  }
+  50% {
+    opacity: 0.7;
+  }
 }
