@@ -3,7 +3,7 @@ if (sessionStorage.getItem("isAdminAuthenticated") !== "true") {
   window.location.href = "logindash.html";
 }
 
-const API_BASE = "https://backend-9lv5.onrender.com/api";
+const API_BASE = "https://3h48gqgv-5000.asse.devtunnels.ms/api";
 let isEditMode = true; // Global state
 
 async function loadSensors() {
@@ -198,6 +198,19 @@ document.getElementById("updateForm").onsubmit = async (e) => {
     alert("Critical: Could not reach the server.");
   }
 };
+
+function handleLogout() {
+  // 1. Optional: Add a confirmation
+  if (!confirm("Are you sure you want to logout of HeatSync Admin?")) return;
+
+  // 2. Clear session/local storage (if you used them for login)
+  localStorage.removeItem("adminLoggedIn");
+  localStorage.removeItem("adminUser");
+  sessionStorage.clear();
+
+  // 3. Redirect to login page
+  window.location.href = "logindash.html";
+}
 
 // Start!
 loadSensors();
