@@ -103,6 +103,7 @@ function handleEditClick(sensor) {
   // Lock the code field for edits
   const codeField = document.getElementById("editCode");
   codeField.disabled = false; // Allow editing of code for PATCH (if your backend supports it)
+  codeField.classList.remove("opacity-70", "cursor-not-allowed");
   codeField.classList.add("cursor-text");
 
   document.querySelector('#updateForm button[type="submit"]').innerText =
