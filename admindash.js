@@ -59,10 +59,12 @@ async function loadSensors() {
                 "X-Tunnel-Skip-Anti-Phishing-Page": "true",
               },
             });
+            // Replace the alert calls inside the delete listener
             if (res.ok) {
+              showStatus(`Sensor ${s.sensorCode} deleted.`, "success");
               loadSensors();
             } else {
-              alert("❌ Delete Failed");
+              showStatus("Delete Failed: Check API Key.", "error");
             }
           } catch (err) {
             alert("Critical: Server Unreachable");
@@ -75,8 +77,8 @@ async function loadSensors() {
 
     // --- ADD THESE LINES HERE ---
   } catch (err) {
-    console.error("Critical: Failed to sync with backend.", err);
-    alert("Connection Error: Backend unreachable!");
+    console.error("Sync Error:", err);
+    showStatus("Connection Error: Backend unreachable!", "error");
   }
 } // End of loadSensors
 
@@ -180,30 +182,36 @@ document.getElementById("updateForm").onsubmit = async (e) => {
       method: method,
       headers: {
         "Content-Type": "application/json",
-        "X-API-KEY": HEALERTSYS_CONFIG.apiKey,
+        "X-API-KEY": HEALERTSYS_CONFIG.apiKey, // Crucial for your Render backend
         "X-Tunnel-Skip-Anti-Phishing-Page": "true",
       },
       body: JSON.stringify(data),
     });
 
     if (res.ok) {
-      alert(
-        isEditMode ? `✅ Updated ${sensorCode}` : `✅ Registered ${sensorCode}`,
+      showStatus(
+        isEditMode
+          ? `Updated ${sensorCode} configuration.`
+          : `Successfully registered ${sensorCode}.`,
+        "success",
       );
       loadSensors();
       closeEdit();
-    }
-    // 🔥 ADD THIS SPECIFIC CHECK HERE
-    else if (res.status === 409) {
-      alert(
-        `❌ Conflict: The code "${sensorCode}" is already assigned to another sensor.`,
+    } else if (res.status === 409) {
+      showStatus(
+        `Conflict: The code "${sensorCode}" is already in use.`,
+        "warning",
       );
     } else {
-      const errorText = await res.text();
-      alert("❌ Server Error: " + errorText);
+      const errorMsg = await res.json().catch(() => ({}));
+      showStatus(
+        `Backend Error: ${errorMsg.message || "Failed to process."}`,
+        "error",
+      );
     }
   } catch (err) {
-    alert("Critical: Could not reach the server.");
+    showStatus("Critical: Connection to Render backend lost.", "error");
+    console.error(err);
   }
 };
 
