@@ -91,10 +91,18 @@ function renderSidebar(data) {
 
   if (!data || data.length === 0) return;
 
+  // --- ADD THIS HELPER BACK ---
+  const getMinuteBasis = (node) => {
+    const d = new Date(node.rawTime || node.time);
+    d.setSeconds(0, 0);
+    return d.getTime();
+  };
+  // ----------------------------
+
   // 1. Sort the ENTIRE dataset by time first (Newest pings at the top)
   data.sort((a, b) => new Date(b.rawTime) - new Date(a.rawTime));
 
-  // 2. FIND THE LATEST MINUTE WINDOW (Same as before)
+  // 2. FIND THE LATEST MINUTE WINDOW
   const latestMinute = Math.max(...data.map((n) => getMinuteBasis(n)));
 
   // 3. ISOLATE CANDIDATES FOR THE "HOTTEST" CROWN
@@ -103,13 +111,11 @@ function renderSidebar(data) {
   );
 
   // 4. PICK THE KING (Hottest in that latest minute)
-  // We clone the array so we don't mess up the original data sort
   const priorityNode = [...currentWindowNodes].sort(
     (a, b) => parseFloat(b.heatIndex) - parseFloat(a.heatIndex),
   )[0];
 
   // 5. ASSEMBLE DYNAMIC LIST
-  // Put the "King" first, then everyone else in chronological order (Newest -> Oldest)
   const remainingNodes = data.filter((n) => n !== priorityNode);
   const finalSortedList = priorityNode
     ? [priorityNode, ...remainingNodes]
