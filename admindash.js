@@ -177,35 +177,33 @@ document.getElementById("updateForm").onsubmit = async (e) => {
 
   try {
     const res = await fetch(url, {
-      /* ... keep headers/body ... */
+      method: method,
+      headers: {
+        "Content-Type": "application/json",
+        "X-API-KEY": HEALERTSYS_CONFIG.apiKey,
+        "X-Tunnel-Skip-Anti-Phishing-Page": "true",
+      },
+      body: JSON.stringify(data),
     });
 
     if (res.ok) {
-      showStatus(
-        isEditMode
-          ? `Updated ${sensorCode} configuration.`
-          : `Successfully registered ${sensorCode}.`,
-        "success",
+      alert(
+        isEditMode ? `✅ Updated ${sensorCode}` : `✅ Registered ${sensorCode}`,
       );
       loadSensors();
       closeEdit();
-    } else if (res.status === 409) {
-      showStatus(
-        `Conflict: The code "${sensorCode}" is already in use by another location.`,
-        "warning",
+    }
+    // 🔥 ADD THIS SPECIFIC CHECK HERE
+    else if (res.status === 409) {
+      alert(
+        `❌ Conflict: The code "${sensorCode}" is already assigned to another sensor.`,
       );
     } else {
-      const errorMsg = await res.text();
-      showStatus(
-        `Backend Error: ${errorMsg || "Unable to process request."}`,
-        "error",
-      );
+      const errorText = await res.text();
+      alert("❌ Server Error: " + errorText);
     }
   } catch (err) {
-    showStatus(
-      "Critical: Connection to Render backend lost. Check internet.",
-      "error",
-    );
+    alert("Critical: Could not reach the server.");
   }
 };
 
