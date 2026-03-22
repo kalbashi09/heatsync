@@ -53,6 +53,7 @@ document.getElementById("brgySearch").addEventListener("input", (e) => {
 });
 
 // --- 2. DATA SYNC LOGIC ---
+// --- 2. DATA SYNC LOGIC ---
 async function syncData(flyToLatest = false) {
   const status = document.getElementById("sync-status");
   status.innerText = "SYNCING";
@@ -67,6 +68,7 @@ async function syncData(flyToLatest = false) {
     const data = await response.json();
     allNodes = data;
 
+    // Standard Search Filter Logic
     const currentSearch = document
       .getElementById("brgySearch")
       .value.toLowerCase()
@@ -82,7 +84,26 @@ async function syncData(flyToLatest = false) {
       renderSidebar(allNodes);
     }
 
-    if (flyToLatest && data.length > 0) focusNode(data[0]);
+    // --- NEW: FLY TO THE HOTTEST SENSOR ---
+    if (flyToLatest && data.length > 0) {
+      // 1. Get the latest time window
+      const latestTime = Math.max(
+        ...data.map((n) => new Date(n.rawTime).getTime()),
+      );
+
+      // 2. Filter for nodes in that window
+      const latestNodes = data.filter(
+        (n) => new Date(n.rawTime).getTime() === latestTime,
+      );
+
+      // 3. Find the one with the highest Heat Index
+      const hottestNode = latestNodes.sort(
+        (a, b) => parseFloat(b.heatIndex) - parseFloat(a.heatIndex),
+      )[0];
+
+      if (hottestNode) focusNode(hottestNode);
+    }
+
     status.innerText = "READY";
   } catch (e) {
     status.innerText = "ERROR";
