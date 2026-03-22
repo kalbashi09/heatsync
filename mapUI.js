@@ -91,33 +91,29 @@ function renderSidebar(data) {
 
   if (!data || data.length === 0) return;
 
-  // 1. HELPER: Normalize time to the start of the minute
-  // We use rawTime because it's the most accurate ISO format
-  const getMinuteBasis = (node) => {
-    const d = new Date(node.rawTime || node.time);
-    d.setSeconds(0, 0);
-    return d.getTime();
-  };
+  // 1. Sort the ENTIRE dataset by time first (Newest pings at the top)
+  data.sort((a, b) => new Date(b.rawTime) - new Date(a.rawTime));
 
-  // 2. FIND THE LATEST MINUTE WINDOW
-  // This ensures TAL-01 and TAC-02 compete if they both reported at 10:55 PM
+  // 2. FIND THE LATEST MINUTE WINDOW (Same as before)
   const latestMinute = Math.max(...data.map((n) => getMinuteBasis(n)));
 
-  // 3. ISOLATE CANDIDATES FOR THE CROWN
+  // 3. ISOLATE CANDIDATES FOR THE "HOTTEST" CROWN
   const currentWindowNodes = data.filter(
     (n) => getMinuteBasis(n) === latestMinute,
   );
 
-  // 4. PICK THE KING (Hottest in the latest minute)
-  currentWindowNodes.sort(
+  // 4. PICK THE KING (Hottest in that latest minute)
+  // We clone the array so we don't mess up the original data sort
+  const priorityNode = [...currentWindowNodes].sort(
     (a, b) => parseFloat(b.heatIndex) - parseFloat(a.heatIndex),
-  );
-  const priorityNode = currentWindowNodes[0];
+  )[0];
 
-  // 5. ASSEMBLE LIST
-  // Priority first, then the rest of the nodes in their original order
+  // 5. ASSEMBLE DYNAMIC LIST
+  // Put the "King" first, then everyone else in chronological order (Newest -> Oldest)
   const remainingNodes = data.filter((n) => n !== priorityNode);
-  const finalSortedList = [priorityNode, ...remainingNodes];
+  const finalSortedList = priorityNode
+    ? [priorityNode, ...remainingNodes]
+    : data;
 
   // 6. RENDER
   finalSortedList.forEach((node, index) => {
