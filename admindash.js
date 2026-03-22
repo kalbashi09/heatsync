@@ -228,5 +228,56 @@ function handleLogout() {
   window.location.href = "logindash.html";
 }
 
+function showStatus(message, type = "success") {
+  let container = document.getElementById("notif-container");
+  if (!container) {
+    container = document.createElement("div");
+    container.id = "notif-container";
+    container.className = "fixed top-5 right-5 z-[9999] w-80 space-y-3";
+    document.body.appendChild(container);
+  }
+
+  const styles = {
+    success: {
+      bg: "bg-emerald-500/10",
+      border: "border-emerald-500/50",
+      icon: "check-circle",
+      text: "text-emerald-400",
+    },
+    error: {
+      bg: "bg-rose-500/10",
+      border: "border-rose-500/50",
+      icon: "alert-octagon",
+      text: "text-rose-400",
+    },
+    warning: {
+      bg: "bg-amber-500/10",
+      border: "border-amber-500/50",
+      icon: "alert-triangle",
+      text: "text-amber-400",
+    },
+  };
+
+  const config = styles[type] || styles.success;
+  const toast = document.createElement("div");
+  toast.className = `flex items-start gap-3 p-4 border rounded-lg shadow-2xl backdrop-blur-md transition-all duration-500 ${config.bg} ${config.border}`;
+
+  toast.innerHTML = `
+    <i data-lucide="${config.icon}" class="${config.text} w-5 h-5 mt-0.5"></i>
+    <div class="flex-1">
+      <p class="text-[10px] font-black uppercase tracking-widest opacity-60 ${config.text}">${type}</p>
+      <p class="text-xs font-bold text-white leading-tight">${message}</p>
+    </div>
+  `;
+
+  container.appendChild(toast);
+  if (window.lucide) lucide.createIcons();
+
+  setTimeout(() => {
+    toast.style.opacity = "0";
+    setTimeout(() => toast.remove(), 500);
+  }, 4000);
+}
+
 // Start!
 loadSensors();
