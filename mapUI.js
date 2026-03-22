@@ -272,4 +272,4 @@ function handleLogout() {
 // Initialization
 if (window.lucide) lucide.createIcons();
 map.on("load", () => syncData(false));
-setInterval(() => syncData(false), 10000); // 10 seconds
+setInterval(() => syncData(false), 15000); // 15 seconds
