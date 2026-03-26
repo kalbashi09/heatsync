@@ -45,7 +45,7 @@ loginForm.addEventListener("submit", async (e) => {
     // 2. API Call to your C# Backend
     // Ensure the URL matches your Kestrel config (Default is http://localhost:5000)
     const response = await fetch(
-      "https://backend-9lv5.onrender.com/api/auth/login",
+      "https://heatsyncserver-1.onrender.com/api/auth/login",
       {
         method: "POST",
         headers: {
