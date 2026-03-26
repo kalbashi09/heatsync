@@ -220,5 +220,107 @@ function handleLogout() {
   window.location.href = "logindash.html";
 }
 
+async function downloadHeatLogsEXC() {
+  try {
+    console.log("--- [Excel Export]: Fetching live logs ---");
+
+    const response = await fetch(`${API_BASE}/live-heat-history`, {
+      headers: {
+        "X-Tunnel-Skip-Anti-Phishing-Page": "true",
+        "X-API-KEY": HEALERTSYS_CONFIG.apiKey,
+      },
+    });
+
+    if (!response.ok) throw new Error("Failed to fetch heat logs");
+    const logs = await response.json();
+
+    if (!logs || logs.length === 0) {
+      alert("No logs found to export.");
+      return;
+    }
+
+    // Initialize ExcelJS Workbook
+    const workbook = new ExcelJS.Workbook();
+    const worksheet = workbook.addWorksheet("HeatSync Logs");
+
+    // 1. Define Columns
+    worksheet.columns = [
+      { header: "Sensor Code", key: "sensorCode", width: 15 },
+      { header: "Display Name", key: "displayName", width: 25 },
+      { header: "Barangay", key: "barangayName", width: 20 },
+      { header: "Heat Index (°C)", key: "heatIndex", width: 15 },
+      { header: "Latitude", key: "lat", width: 12 },
+      { header: "Longitude", key: "lng", width: 12 },
+      { header: "Date", key: "date", width: 15 },
+      { header: "Time", key: "time", width: 12 },
+    ];
+
+    // 2. Format Header Row (Bold + Dark Background)
+    worksheet.getRow(1).font = { bold: true, color: { argb: "FFFFFFFF" } };
+    worksheet.getRow(1).fill = {
+      type: "pattern",
+      pattern: "solid",
+      fgColor: { argb: "FF0F172A" }, // Slate-900
+    };
+
+    // 3. Add Rows and Apply Conditional Coloring
+    logs.forEach((log) => {
+      const row = worksheet.addRow(log);
+      const heat = log.heatIndex;
+
+      // Determine color based on your 5-state logic
+      let bgColor = "FF60A5FA"; // Default Blue (Cool)
+      let textColor = "FF000000"; // Default Black Text
+
+      if (heat >= 49)
+        bgColor = "FFBE123C"; // Red (Extreme Danger)
+      else if (heat >= 42)
+        bgColor = "FFF24E1E"; // Orangy-Red (Danger)
+      else if (heat >= 33)
+        bgColor = "FFF59E0B"; // Yellow/Amber (Caution)
+      else if (heat >= 26) bgColor = "FF10B981"; // Green (Normal)
+
+      // Apply fill to the Heat Index cell (Column 4)
+      const heatCell = row.getCell(4);
+      heatCell.fill = {
+        type: "pattern",
+        pattern: "solid",
+        fgColor: { argb: bgColor },
+      };
+      heatCell.font = {
+        bold: true,
+        color: { argb: heat >= 42 ? "FFFFFFFF" : "FF000000" },
+      };
+
+      // Add thin borders for that clean Excel look
+      row.eachCell({ includeEmpty: true }, (cell) => {
+        cell.border = {
+          top: { style: "thin" },
+          left: { style: "thin" },
+          bottom: { style: "thin" },
+          right: { style: "thin" },
+        };
+      });
+    });
+
+    // 4. Generate and Download File
+    const buffer = await workbook.xlsx.writeBuffer();
+    const blob = new Blob([buffer], {
+      type: "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+    });
+    const url = URL.createObjectURL(blob);
+
+    const link = document.createElement("a");
+    link.href = url;
+    link.download = `HeatSync_Report_${new Date().toISOString().split("T")[0]}.xlsx`;
+    link.click();
+
+    console.log("✅ [Excel Export]: .xlsx file generated.");
+  } catch (err) {
+    console.error("Critical: Excel generation failed", err);
+    alert("Export Error: Could not generate Excel file.");
+  }
+}
+
 // Start!
 loadSensors();
