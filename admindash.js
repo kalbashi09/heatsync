@@ -155,11 +155,21 @@ document.getElementById("updateForm").onsubmit = async (e) => {
   const id = document.getElementById("sensorId").value;
   const sensorCode = document.getElementById("editCode").value;
 
+  // ✅ Use correct property names: latitude, longitude
   const data = {
-    /* ... same ... */
+    sensorCode: sensorCode,
+    displayName: document.getElementById("editName").value,
+    barangay: document.getElementById("editBarangay").value,
+    latitude: parseFloat(document.getElementById("editLat").value) || 0, // was 'lat'
+    longitude: parseFloat(document.getElementById("editLng").value) || 0, // was 'lng'
+    baselineTemp: parseInt(document.getElementById("editBaseline").value) || 30,
+    environmentType: document.getElementById("editEnv").value,
+    isActive: document.getElementById("editActive").value === "true",
   };
 
-  const url = isEditMode ? `${API_BASE}/sensors/${id}` : `${API_BASE}/sensors`; // ✅ changed from /register-sensor to /sensors (POST)
+  // ✅ Correct endpoint for create
+  const url = isEditMode ? `${API_BASE}/sensors/${id}` : `${API_BASE}/sensors`; // POST to /sensors, not /register-sensor
+
   const method = isEditMode ? "PATCH" : "POST";
 
   try {
