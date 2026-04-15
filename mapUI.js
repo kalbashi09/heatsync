@@ -13,19 +13,33 @@ const map = new maplibregl.Map({
   attributionControl: false,
 });
 
-// Add this at the VERY top
 if (typeof HEALERTSYS_CONFIG === "undefined") {
   console.error("CRITICAL: config.js is missing or not loaded!");
   alert("System Configuration Error. Check console.");
 }
 
+// --- Helper: Convert UTC to PH Time ---
+function toPHTime(utcString) {
+  const date = new Date(utcString);
+  return new Date(date.toLocaleString("en-US", { timeZone: "Asia/Manila" }));
+}
+
+function formatPHTime(date) {
+  return date.toLocaleTimeString("en-US", {
+    hour: "2-digit",
+    minute: "2-digit",
+    hour12: true,
+    timeZone: "Asia/Manila",
+  });
+}
+
 // --- 0. SHARED COLOR LOGIC (5 STATES) ---
 function getHeatColor(heat) {
-  if (heat >= 49) return "#be123c"; // 🔴 EXTREME DANGER
-  if (heat >= 42) return "#f24e1e"; // 🟠 DANGER (Brand Orange)
-  if (heat >= 33) return "#f59e0b"; // 🟡 CAUTION (Amber)
-  if (heat >= 26) return "#10b981"; // 🟢 NORMAL (Emerald)
-  return "#60a5fa"; // 🔵 COOL (Blue)
+  if (heat >= 49) return "#be123c";
+  if (heat >= 42) return "#f24e1e";
+  if (heat >= 33) return "#f59e0b";
+  if (heat >= 26) return "#10b981";
+  return "#60a5fa";
 }
 
 function getTailwindColorClass(heat) {
@@ -38,65 +52,60 @@ function getTailwindColorClass(heat) {
 
 function getNodeDedupeKey(node) {
   const sensorCode = (node.sensorCode || "").trim().toUpperCase();
-  return sensorCode || `${node.lat || ""}_${node.lng || ""}`;
+  return (
+    sensorCode ||
+    `${node.latitude || node.lat || ""}_${node.longitude || node.lng || ""}`
+  );
 }
 
-function getCurrentHotSensorKeys() {
-  const uniqueSensors = dedupeLatestBySensor(allNodes);
-  if (!uniqueSensors || uniqueSensors.length === 0) return new Set();
-
-  const getMinuteBasis = (node) => {
-    const d = new Date(node.rawTime || node.time);
-    d.setSeconds(0, 0);
-    return d.getTime();
-  };
-
-  const latestMinute = Math.max(...uniqueSensors.map((n) => getMinuteBasis(n)));
-  const windowNodes = uniqueSensors.filter(
-    (n) => getMinuteBasis(n) === latestMinute,
-  );
-
-  const maxHeatInWindow = Math.max(
-    ...windowNodes.map((n) => parseFloat(n.heatIndex)),
-  );
-  const priorityNodes = windowNodes.filter(
-    (n) => parseFloat(n.heatIndex) === maxHeatInWindow,
-  );
-
-  return new Set(priorityNodes.map(getNodeDedupeKey));
-}
-
-// --- Helper: Deduplicate and keep latest reading per sensor ---
+// --- Deduplicate: keep latest reading per sensor using recordedAt (UTC) ---
 function dedupeLatestBySensor(data) {
   const latest = new Map();
-
   data.forEach((node) => {
-    const sensorCode = (node.sensorCode || "").trim().toUpperCase();
-    const dedupeKey = sensorCode || `${node.lat || ""}_${node.lng || ""}`;
-    const candidateTime = new Date(node.rawTime || node.time || 0).getTime();
-
+    const dedupeKey = getNodeDedupeKey(node);
+    const candidateTime = new Date(node.recordedAt || 0).getTime();
     if (!latest.has(dedupeKey)) {
       latest.set(dedupeKey, node);
       return;
     }
-
-    const existing = latest.get(dedupeKey);
     const existingTime = new Date(
-      existing.rawTime || existing.time || 0,
+      latest.get(dedupeKey).recordedAt || 0,
     ).getTime();
-
     if (candidateTime > existingTime) {
       latest.set(dedupeKey, node);
     }
   });
-
   return Array.from(latest.values());
 }
 
-// --- 1. SEARCH LOGIC ---
+// --- Get hottest sensor keys within the latest PH minute ---
+function getCurrentHotSensorKeys() {
+  const uniqueSensors = dedupeLatestBySensor(allNodes);
+  if (!uniqueSensors || uniqueSensors.length === 0) return new Set();
+
+  const getPHMinuteBasis = (node) => {
+    if (!node.phTime) return 0;
+    const d = new Date(node.phTime);
+    d.setSeconds(0, 0);
+    return d.getTime();
+  };
+
+  const latestMinute = Math.max(
+    ...uniqueSensors.map((n) => getPHMinuteBasis(n)),
+  );
+  const windowNodes = uniqueSensors.filter(
+    (n) => getPHMinuteBasis(n) === latestMinute,
+  );
+  const maxHeat = Math.max(...windowNodes.map((n) => parseFloat(n.heatIndex)));
+  const priorityNodes = windowNodes.filter(
+    (n) => parseFloat(n.heatIndex) === maxHeat,
+  );
+  return new Set(priorityNodes.map(getNodeDedupeKey));
+}
+
+// --- SEARCH LOGIC ---
 document.getElementById("brgySearch").addEventListener("input", (e) => {
   const term = e.target.value.toLowerCase().trim();
-
   let filtered = allNodes;
   if (term) {
     filtered = allNodes.filter((node) => {
@@ -107,18 +116,13 @@ document.getElementById("brgySearch").addEventListener("input", (e) => {
       );
     });
   }
-
-  // Render and grab the top result
   const sorted = renderSidebar(filtered);
-
-  // If we found something and the user is actively searching, fly to the top match
   if (term && sorted.length > 0) {
     focusNode(sorted[0]);
   }
 });
 
-// --- 2. DATA SYNC LOGIC ---
-// --- 2. DATA SYNC LOGIC ---
+// --- DATA SYNC LOGIC ---
 async function syncData(flyToLatest = false) {
   const status = document.getElementById("sync-status");
   status.innerText = "SYNCING";
@@ -130,18 +134,23 @@ async function syncData(flyToLatest = false) {
         "X-Tunnel-Skip-Anti-Phishing-Page": "true",
       },
     });
-
     if (!response.ok) throw new Error(`HTTP ${response.status}`);
-
     const result = await response.json();
 
-    // ✅ Extract logs from wrapped ApiResponse
+    // Extract logs from wrapped ApiResponse
     const rawData = result.data?.logs || result || [];
 
-    // Filter only active sensors (backend already does this, but double-check)
-    allNodes = rawData.filter((node) => node.isActive !== false);
+    // Process each node: add phTime and phTimeString
+    allNodes = rawData
+      .filter((node) => node.isActive !== false)
+      .map((node) => ({
+        ...node,
+        phTime: node.recordedAt ? toPHTime(node.recordedAt) : null,
+        phTimeString: node.recordedAt
+          ? formatPHTime(toPHTime(node.recordedAt))
+          : node.time,
+      }));
 
-    // Deduplicate and get hottest
     globalHottestKeys = getCurrentHotSensorKeys();
 
     const currentSearch = document
@@ -149,7 +158,6 @@ async function syncData(flyToLatest = false) {
       .value.toLowerCase()
       .trim();
     let displayNodes = allNodes;
-
     if (currentSearch) {
       displayNodes = allNodes.filter(
         (n) =>
@@ -160,11 +168,9 @@ async function syncData(flyToLatest = false) {
     }
 
     const sortedNodes = renderSidebar(displayNodes);
-
     if (flyToLatest && sortedNodes.length > 0) {
       focusNode(sortedNodes[0]);
     }
-
     status.innerText = "READY";
   } catch (e) {
     status.innerText = "ERROR";
@@ -172,27 +178,25 @@ async function syncData(flyToLatest = false) {
   }
 }
 
-// --- 3. UI RENDERING (TOP-2 LATEST HOTTEST) ---
+// --- UI RENDERING ---
 function renderSidebar(data) {
   const container = document.getElementById("sensorList");
   container.innerHTML = "";
-  if (!data || data.length === 0) return []; // Return empty array if no data
+  if (!data || data.length === 0) return [];
 
   const uniqueSensors = dedupeLatestBySensor(data);
 
-  // Sorting logic (Stay the same: Hottest Globally -> Newest)
   uniqueSensors.sort((a, b) => {
     const aKey = getNodeDedupeKey(a);
     const bKey = getNodeDedupeKey(b);
     const aIsHot = globalHottestKeys.has(aKey);
     const bIsHot = globalHottestKeys.has(bKey);
-
     if (aIsHot && !bIsHot) return -1;
     if (!aIsHot && bIsHot) return 1;
-    return new Date(b.rawTime) - new Date(a.rawTime);
+    // Use recordedAt for reliable sorting
+    return new Date(b.recordedAt || 0) - new Date(a.recordedAt || 0);
   });
 
-  // 3. Render
   uniqueSensors.forEach((node) => {
     const isPriority = globalHottestKeys.has(getNodeDedupeKey(node));
     const heat = node.heatIndex;
@@ -215,26 +219,17 @@ function renderSidebar(data) {
         </div>
         <div class="text-right">
           <div class="text-xl font-black ${colorClass} leading-none" style="color: ${colorHex}">${heat}°C</div>
-          <div class="text-[9px] text-slate-600 font-mono mt-2">${node.time}</div>
+          <div class="text-[9px] text-slate-600 font-mono mt-2">${node.phTimeString || node.time || ""}</div>
         </div>
       </div>
     `;
-
     card.addEventListener("click", () => focusNode(node));
     container.appendChild(card);
   });
-
   return uniqueSensors;
 }
 
-// Helper to prevent crashes if something goes wrong with the priority logic
-function renderStandardList(data, container) {
-  data.forEach((node) => {
-    // ... render simple cards here ...
-  });
-}
-
-// --- 4. MAP HELPERS ---
+// --- MAP HELPERS ---
 function focusNode(node) {
   document
     .querySelectorAll(".radar-node")
@@ -243,10 +238,10 @@ function focusNode(node) {
 
   document.getElementById("active-sensor-code").innerText =
     `NODE: ${node.sensorCode}`;
-  document.getElementById("last-ping").innerText = `PING: ${node.time}`;
+  document.getElementById("last-ping").innerText =
+    `PING: ${node.phTimeString || node.time || ""}`;
 
   const color = getHeatColor(node.heatIndex);
-
   const el = document.createElement("div");
   el.className = "radar-node is-active";
   el.innerHTML = `
@@ -255,7 +250,7 @@ function focusNode(node) {
     <div class="node-overlay">
       <div class="flex justify-between items-center mb-2 border-b border-white/10 pb-2">
         <span class="text-[10px] font-black text-[#60a5fa] font-mono uppercase">${node.sensorCode}</span>
-        <span class="text-[10px] text-slate-500 font-mono">${node.time}</span>
+        <span class="text-[10px] text-slate-500 font-mono">${node.phTimeString || node.time || ""}</span>
       </div>
       <div class="text-xs font-black text-white mb-1 uppercase tracking-tight">${node.displayName}</div>
       <div class="text-[10px] text-slate-400 mb-3 uppercase font-mono">Brgy. ${node.barangayName}</div>
@@ -265,18 +260,16 @@ function focusNode(node) {
       </div>
     </div>
   `;
-
   el.addEventListener("click", () => el.classList.toggle("is-active"));
 
   activeMarker = new maplibregl.Marker({ element: el })
-    .setLngLat([node.lng, node.lat])
+    .setLngLat([node.longitude || node.lng, node.latitude || node.lat])
     .addTo(map);
 
   map.flyTo({
-    center: [node.lng, node.lat],
+    center: [node.longitude || node.lng, node.latitude || node.lat],
     zoom: 16,
     pitch: 45,
-    // Increase bottom padding for mobile to account for the drawer
     padding: { bottom: window.innerWidth < 768 ? 220 : 0 },
   });
 }
@@ -296,4 +289,4 @@ function handleLogout() {
 // Initialization
 if (window.lucide) lucide.createIcons();
 map.on("load", () => syncData(false));
-setInterval(() => syncData(false), 15000); // 15 seconds
+setInterval(() => syncData(false), 15000);

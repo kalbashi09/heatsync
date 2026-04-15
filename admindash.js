@@ -238,10 +238,10 @@ async function downloadHeatLogsEXC() {
       { header: "Display Name", key: "displayName", width: 25 },
       { header: "Barangay", key: "barangayName", width: 20 },
       { header: "Heat Index (°C)", key: "heatIndex", width: 15 },
-      { header: "Latitude", key: "lat", width: 12 },
-      { header: "Longitude", key: "lng", width: 12 },
-      { header: "Date", key: "date", width: 15 },
-      { header: "Time", key: "time", width: 12 },
+      { header: "Latitude", key: "latitude", width: 12 },
+      { header: "Longitude", key: "longitude", width: 12 },
+      { header: "Date (PH Time)", key: "phDate", width: 15 },
+      { header: "Time (PH Time)", key: "phTime", width: 12 },
     ];
 
     // 2. Format Header Row (Bold + Dark Background)
@@ -252,21 +252,43 @@ async function downloadHeatLogsEXC() {
       fgColor: { argb: "FF0F172A" }, // Slate-900
     };
 
-    // 3. Add Rows and Apply Conditional Coloring
+    // 3. Add Rows with PH time conversion
     logs.forEach((log) => {
-      const row = worksheet.addRow(log);
+      // Convert UTC recordedAt to Philippine Time
+      const recordedAt = log.recordedAt ? new Date(log.recordedAt) : new Date();
+      const phDate = recordedAt.toLocaleDateString("en-US", {
+        timeZone: "Asia/Manila",
+      });
+      const phTime = recordedAt.toLocaleTimeString("en-US", {
+        hour: "2-digit",
+        minute: "2-digit",
+        hour12: true,
+        timeZone: "Asia/Manila",
+      });
+
+      // Build row data with PH time fields
+      const rowData = {
+        sensorCode: log.sensorCode,
+        displayName: log.displayName,
+        barangayName: log.barangayName,
+        heatIndex: log.heatIndex,
+        latitude: log.latitude ?? log.lat,
+        longitude: log.longitude ?? log.lng,
+        phDate: phDate,
+        phTime: phTime,
+      };
+
+      const row = worksheet.addRow(rowData);
       const heat = log.heatIndex;
 
       // Determine color based on your 5-state logic
       let bgColor = "FF60A5FA"; // Default Blue (Cool)
-      let textColor = "FF000000"; // Default Black Text
-
       if (heat >= 49)
         bgColor = "FFBE123C"; // Red (Extreme Danger)
       else if (heat >= 42)
-        bgColor = "FFF24E1E"; // Orangy-Red (Danger)
+        bgColor = "FFF24E1E"; // Orange (Danger)
       else if (heat >= 33)
-        bgColor = "FFF59E0B"; // Yellow/Amber (Caution)
+        bgColor = "FFF59E0B"; // Amber (Caution)
       else if (heat >= 26) bgColor = "FF10B981"; // Green (Normal)
 
       // Apply fill to the Heat Index cell (Column 4)
@@ -304,7 +326,7 @@ async function downloadHeatLogsEXC() {
     link.download = `HeatSync_Report_${new Date().toISOString().split("T")[0]}.xlsx`;
     link.click();
 
-    console.log("✅ [Excel Export]: .xlsx file generated.");
+    console.log("✅ [Excel Export]: .xlsx file generated with PH time.");
   } catch (err) {
     console.error("Critical: Excel generation failed", err);
     alert("Export Error: Could not generate Excel file.");
