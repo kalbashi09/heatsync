@@ -13,9 +13,12 @@ async function loadSensors() {
       throw new Error(`Server responded with ${response.status}`);
 
     const result = await response.json();
-    const sensors = result.data || result; // ✅ unwrap
+
+    // ✅ Unwrap the ApiResponse wrapper
+    const sensors = result.data || result;
+
     const tbody = document.getElementById("sensorBody");
-    tbody.innerHTML = ""; // Clear existing
+    tbody.innerHTML = "";
 
     sensors.forEach((s) => {
       const statusBadge = s.isActive
@@ -42,44 +45,37 @@ async function loadSensors() {
             </div>
         </td>`;
 
-      // --- ATTACH LISTENERS INSIDE THE LOOP ---
+      // Attach listeners
       tr.querySelector(".edit-btn").addEventListener("click", () => {
         handleEditClick(s);
       });
 
       tr.querySelector(".delete-btn").addEventListener("click", async () => {
-        const confirmed = confirm(
-          `⚠️ DANGER: Permanent delete ${s.sensorCode}?`,
-        );
-        if (confirmed) {
-          try {
-            const res = await fetch(`${API_BASE}/sensors/${s.id}`, {
-              method: "DELETE",
-              headers: {
-                "X-API-KEY": HEALERTSYS_CONFIG.apiKey,
-                "X-Tunnel-Skip-Anti-Phishing-Page": "true",
-              },
-            });
-            if (res.ok) {
-              loadSensors();
-            } else {
-              alert("❌ Delete Failed");
-            }
-          } catch (err) {
-            alert("Critical: Server Unreachable");
+        if (!confirm(`⚠️ DANGER: Permanent delete ${s.sensorCode}?`)) return;
+        try {
+          const res = await fetch(`${API_BASE}/sensors/${s.id}`, {
+            method: "DELETE",
+            headers: {
+              "X-API-KEY": HEALERTSYS_CONFIG.apiKey,
+            },
+          });
+          if (res.ok) {
+            loadSensors();
+          } else {
+            alert("❌ Delete Failed");
           }
+        } catch (err) {
+          alert("Critical: Server Unreachable");
         }
       });
 
-      tbody.appendChild(tr); // Add to the table
-    }); // End of forEach
-
-    // --- ADD THESE LINES HERE ---
+      tbody.appendChild(tr);
+    });
   } catch (err) {
     console.error("Critical: Failed to sync with backend.", err);
     alert("Connection Error: Backend unreachable!");
   }
-} // End of loadSensors
+}
 
 // Handle Edit Button Click
 function handleEditClick(sensor) {
@@ -89,21 +85,20 @@ function handleEditClick(sensor) {
   document.getElementById("noSelection").classList.add("hidden");
   document.getElementById("formTitle").innerText = `Edit: ${sensor.sensorCode}`;
 
-  // Map data to inputs
+  // ✅ Map to correct property names (camelCase from C# DTO)
   document.getElementById("sensorId").value = sensor.id || "";
   document.getElementById("editCode").value = sensor.sensorCode;
   document.getElementById("editName").value = sensor.displayName;
   document.getElementById("editBarangay").value = sensor.barangay;
-  document.getElementById("editLat").value = sensor.lat;
-  document.getElementById("editLng").value = sensor.lng;
+  document.getElementById("editLat").value = sensor.latitude; // ✅ was sensor.lat
+  document.getElementById("editLng").value = sensor.longitude; // ✅ was sensor.lng
   document.getElementById("editBaseline").value = sensor.baselineTemp;
   document.getElementById("editEnv").value =
     sensor.environmentType || "Unknown";
   document.getElementById("editActive").value = sensor.isActive.toString();
 
-  // Lock the code field for edits
   const codeField = document.getElementById("editCode");
-  codeField.disabled = false; // Allow editing of code for PATCH (if your backend supports it)
+  codeField.disabled = false;
   codeField.classList.remove("opacity-70", "cursor-not-allowed");
   codeField.classList.add("cursor-text");
 
