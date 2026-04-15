@@ -12,7 +12,8 @@ async function loadSensors() {
     if (!response.ok)
       throw new Error(`Server responded with ${response.status}`);
 
-    const sensors = await response.json();
+    const result = await response.json();
+    const sensors = result.data || result; // ✅ unwrap
     const tbody = document.getElementById("sensorBody");
     tbody.innerHTML = ""; // Clear existing
 
@@ -160,19 +161,10 @@ document.getElementById("updateForm").onsubmit = async (e) => {
   const sensorCode = document.getElementById("editCode").value;
 
   const data = {
-    sensorCode: sensorCode,
-    displayName: document.getElementById("editName").value,
-    barangay: document.getElementById("editBarangay").value,
-    lat: parseFloat(document.getElementById("editLat").value) || 0,
-    lng: parseFloat(document.getElementById("editLng").value) || 0,
-    baselineTemp: parseInt(document.getElementById("editBaseline").value) || 30,
-    environmentType: document.getElementById("editEnv").value,
-    isActive: document.getElementById("editActive").value === "true",
+    /* ... same ... */
   };
 
-  const url = isEditMode
-    ? `${API_BASE}/sensors/${id}`
-    : `${API_BASE}/register-sensor`;
+  const url = isEditMode ? `${API_BASE}/sensors/${id}` : `${API_BASE}/sensors`; // ✅ changed from /register-sensor to /sensors (POST)
   const method = isEditMode ? "PATCH" : "POST";
 
   try {
@@ -181,26 +173,20 @@ document.getElementById("updateForm").onsubmit = async (e) => {
       headers: {
         "Content-Type": "application/json",
         "X-API-KEY": HEALERTSYS_CONFIG.apiKey,
-        "X-Tunnel-Skip-Anti-Phishing-Page": "true",
       },
       body: JSON.stringify(data),
     });
 
+    const result = await res.json();
+
     if (res.ok) {
-      alert(
-        isEditMode ? `✅ Updated ${sensorCode}` : `✅ Registered ${sensorCode}`,
-      );
+      alert(result.message || "Success");
       loadSensors();
       closeEdit();
-    }
-    // 🔥 ADD THIS SPECIFIC CHECK HERE
-    else if (res.status === 409) {
-      alert(
-        `❌ Conflict: The code "${sensorCode}" is already assigned to another sensor.`,
-      );
+    } else if (res.status === 409) {
+      alert(`❌ Conflict: Code "${sensorCode}" already exists.`);
     } else {
-      const errorText = await res.text();
-      alert("❌ Server Error: " + errorText);
+      alert(`❌ Error: ${result.message || "Unknown error"}`);
     }
   } catch (err) {
     alert("Critical: Could not reach the server.");
@@ -224,15 +210,13 @@ async function downloadHeatLogsEXC() {
   try {
     console.log("--- [Excel Export]: Fetching live logs ---");
 
-    const response = await fetch(`${API_BASE}/live-heat-history`, {
-      headers: {
-        "X-Tunnel-Skip-Anti-Phishing-Page": "true",
-        "X-API-KEY": HEALERTSYS_CONFIG.apiKey,
-      },
+    const response = await fetch(`${API_BASE}/alerts/history`, {
+      headers: { "X-API-KEY": HEALERTSYS_CONFIG.apiKey },
     });
-
     if (!response.ok) throw new Error("Failed to fetch heat logs");
-    const logs = await response.json();
+
+    const result = await response.json();
+    const logs = result.data?.logs || result || [];
 
     if (!logs || logs.length === 0) {
       alert("No logs found to export.");

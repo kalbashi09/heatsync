@@ -124,22 +124,26 @@ async function syncData(flyToLatest = false) {
   status.innerText = "SYNCING";
 
   try {
-    const response = await fetch(apiURL, {
+    const response = await fetch(HEALERTSYS_CONFIG.apiHistoryURL, {
       headers: {
         Accept: "application/json",
         "X-Tunnel-Skip-Anti-Phishing-Page": "true",
       },
     });
-    const data = await response.json();
 
-    // ⚡ FIX: Filter out inactive sensors immediately after fetching
-    // This ensures only "Active" sensors move forward to deduplication/rendering
-    allNodes = data.filter((node) => node.isActive !== false);
+    if (!response.ok) throw new Error(`HTTP ${response.status}`);
 
-    // 1. Calculate the Global Truth (True Hottest across ACTIVE sensors)
+    const result = await response.json();
+
+    // ✅ Extract logs from wrapped ApiResponse
+    const rawData = result.data?.logs || result || [];
+
+    // Filter only active sensors (backend already does this, but double-check)
+    allNodes = rawData.filter((node) => node.isActive !== false);
+
+    // Deduplicate and get hottest
     globalHottestKeys = getCurrentHotSensorKeys();
 
-    // 2. Prepare the display list based on current search term
     const currentSearch = document
       .getElementById("brgySearch")
       .value.toLowerCase()
@@ -155,13 +159,8 @@ async function syncData(flyToLatest = false) {
       );
     }
 
-    // 3. Render the Sidebar and get back the CLEAN, SORTED array
-    // This is the array where the "Hottest" is guaranteed to be at index [0]
     const sortedNodes = renderSidebar(displayNodes);
 
-    // 4. FLY TO the top sensor in the VISIBLE list
-    // This ensures that if you searched "Bulacao", it flies to Bulacao.
-    // If you didn't search, it flies to the Global Hottest.
     if (flyToLatest && sortedNodes.length > 0) {
       focusNode(sortedNodes[0]);
     }

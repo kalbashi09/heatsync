@@ -44,33 +44,20 @@ loginForm.addEventListener("submit", async (e) => {
   try {
     // 2. API Call to your C# Backend
     // Ensure the URL matches your Kestrel config (Default is http://localhost:5000)
-    const response = await fetch(
-      "https://backend-9lv5.onrender.com/api/auth/login",
-      {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-        },
-        body: JSON.stringify(payload),
-      },
-    );
+    const response = await fetch(`${HEALERTSYS_CONFIG.apiBase}/auth/login`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(payload),
+    });
 
     const result = await response.json();
 
-    if (response.ok) {
-      // 3. Success Logic
-      console.log("Access Granted:", result.user);
-
-      // Store session data so admindash.html knows who is logged in
+    if (response.ok && result.success) {
       sessionStorage.setItem("isAdminAuthenticated", "true");
-      sessionStorage.setItem("adminName", result.user);
-      sessionStorage.setItem("loginTime", new Date().toISOString());
-
-      // Redirect to the dashboard
+      sessionStorage.setItem("adminName", result.data?.fullName || "Admin");
       window.location.href = "admindash.html";
     } else {
-      // 4. Handle 401 Unauthorized or 404
-      showError(result.message || "Access Denied. Check credentials.");
+      showError(result.message || "Access Denied");
     }
   } catch (err) {
     // 5. Handle Network/Server Down
