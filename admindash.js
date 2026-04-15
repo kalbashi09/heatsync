@@ -3,7 +3,7 @@ if (sessionStorage.getItem("isAdminAuthenticated") !== "true") {
   window.location.href = "logindash.html";
 }
 
-const API_BASE = "https://backend-9lv5.onrender.com/api";
+const API_BASE = HEALERTSYS_CONFIG.apiBase;
 let isEditMode = true; // Global state
 
 async function loadSensors() {
