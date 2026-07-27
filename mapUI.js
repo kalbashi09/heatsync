@@ -145,10 +145,8 @@ async function syncData(flyToLatest = false) {
       .filter((node) => node.isActive !== false)
       .map((node) => ({
         ...node,
-        phTime: node.recordedAt ? toPHTime(node.recordedAt) : null,
-        phTimeString: node.recordedAt
-          ? formatPHTime(toPHTime(node.recordedAt))
-          : node.time,
+        // Just use the time string provided by the backend
+        phTimeString: node.time 
       }));
 
     globalHottestKeys = getCurrentHotSensorKeys();
