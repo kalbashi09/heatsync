@@ -217,6 +217,7 @@ function renderSidebar(data) {
         </div>
         <div class="text-right">
           <div class="text-xl font-black ${colorClass} leading-none" style="color: ${colorHex}">${heat}°C</div>
+          <div class="text-[9px] text-slate-500 font-mono mt-1">💧 ${node.humidity || 0}%</div>
           <div class="text-[9px] text-slate-600 font-mono mt-2">${node.phTimeString || node.time || ""}</div>
         </div>
       </div>
@@ -253,6 +254,7 @@ function focusNode(node) {
       <div class="text-xs font-black text-white mb-1 uppercase tracking-tight">${node.displayName}</div>
       <div class="text-[10px] text-slate-400 mb-3 uppercase font-mono">Brgy. ${node.barangayName}</div>
       <div class="flex justify-between items-end">
+        <div class="text-[9px] text-slate-500 uppercase tracking-widest font-bold">Humidity: ${node.humidity || 0}%</div>
         <div class="text-[9px] text-slate-500 uppercase tracking-widest font-bold">Heat Index</div>
         <div class="text-xl font-black" style="color:${color}">${node.heatIndex}°C</div>
       </div>
