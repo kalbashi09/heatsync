@@ -37,16 +37,16 @@ function formatPHTime(date) {
 function getHeatColor(heat) {
   if (heat >= 49) return "#be123c";
   if (heat >= 42) return "#f24e1e";
-  if (heat >= 33) return "#f59e0b";
-  if (heat >= 26) return "#10b981";
+  if (heat >= 31) return "#f59e0b";
+  if (heat >= 25) return "#10b981";
   return "#60a5fa";
 }
 
 function getTailwindColorClass(heat) {
   if (heat >= 49) return "text-rose-700";
   if (heat >= 42) return "text-[#f24e1e]";
-  if (heat >= 33) return "text-amber-500";
-  if (heat >= 26) return "text-emerald-400";
+  if (heat >= 31) return "text-amber-500";
+  if (heat >= 25) return "text-emerald-400";
   return "text-blue-400";
 }
 
