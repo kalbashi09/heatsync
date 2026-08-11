@@ -289,9 +289,9 @@ async function downloadHeatLogsEXC() {
         bgColor = "FFBE123C"; // Red (Extreme Danger)
       else if (heat >= 42)
         bgColor = "FFF24E1E"; // Orange (Danger)
-      else if (heat >= 33)
+      else if (heat >= 31)
         bgColor = "FFF59E0B"; // Amber (Caution)
-      else if (heat >= 26) bgColor = "FF10B981"; // Green (Normal)
+      else if (heat >= 25) bgColor = "FF10B981"; // Green (Normal)
 
       // Apply fill to the Heat Index cell (Column 4)
       const heatCell = row.getCell(4);
